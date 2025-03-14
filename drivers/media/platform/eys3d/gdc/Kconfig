@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# eYs3D Geometric Distortion Correction driver configuration
+#
+
+config VIDEO_EYS3D_GDC
+	bool "eYs3D Geometric Distortion Correction Driver"
+	depends on VIDEO_DEV
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	select V4L_MEM2MEM_DRIVERS
+	help
+	  Support for the eYs3D Geometric Distortion Correction driver
+
+config VIDEO_EYS3D_GDC_eCV5546
+	bool "Geometric Distortion Correction Driver for eCV5546"
+	depends on VIDEO_EYS3D_GDC
+	help
+	  Support for the eYs3D eCV5546 Geometric Distortion Correction driver

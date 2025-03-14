@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+config FB_eCV5546
+	tristate "eCV5546 framebuffer support"
+	depends on FB && SOC_eCV5546 && VIDEO_eCV5546_DISP
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  Frame buffer driver for eCV5546 based boards.
+	  Default y if eCV5546 display driver exists.
+	  eCV5546 support framebuffer console.
+
+config FB_eCV5546_DEBUG
+	bool "External Debug support"
+	depends on FB_eCV5546
+	help
+	  Say Y here, if you want to have debug support.
+	  Debug function reserved for fb further check.
+	  echo "fbinfo" > /sys/module/ecv5546fb/parameter/debug
+	  can show more info for framebuffer details.

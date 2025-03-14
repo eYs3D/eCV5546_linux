@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
+
+#ifndef __DT_BINDINGS_EYS3D_eCV5546_ISO_H
+#define __DT_BINDINGS_EYS3D_eCV5546_ISO_H
+
+#define BIT_MASK(nr) (1 << (nr))
+
+#define eCV5546_ISO_CORE0 BIT_MASK(0)
+#define eCV5546_ISO_CORE1 BIT_MASK(1)
+#define eCV5546_ISO_CORE2 BIT_MASK(2)
+#define eCV5546_ISO_CORE3 BIT_MASK(3)
+#define eCV5546_ISO_NPU BIT_MASK(4)
+#define eCV5546_ISO_VIDEO BIT_MASK(5)
+
+#endif

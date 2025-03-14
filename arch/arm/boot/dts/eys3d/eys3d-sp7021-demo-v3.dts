@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for eYs3D SP7021 Demo V3 SBC board
+ *
+ * Copyright (C) eYs3D Technology Co.
+ */
+
+/dts-v1/;
+
+#include "eys3d-sp7021-achip.dtsi"
+
+/ {
+	compatible = "eys3d,sp7021-demo-v3", "eys3d,sp7021";
+	model = "eYs3D SP7021/CA7/Demo_V3";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+};

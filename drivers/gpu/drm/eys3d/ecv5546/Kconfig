@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# eys3d drm device configuration.
+
+config DRM_eCV5546
+	tristate "DRM Support for EYS3D eCV5546"
+	depends on DRM
+	depends on VIDEO_DEV && SOC_eCV5546
+	select DRM_MIPI_DSI
+	select DRM_KMS_HELPER
+	select DRM_KMS_DMA_HELPER
+	select DRM_GEM_DMA_HELPER
+	default y
+	help
+	   This option enables support for the eYs3D eCV5546 SoCs with a
+	   Display Engine.
+	   This driver is necessary for drm framework that wishes to utilize the
+	   SoCs Hardware Display for its intended purposes. Without this driver,
+	   the device will not be recognized or accessible by the system.
+	   Please note that this driver requires the SOC_eCV5546 and VIDEO_DEV
+	   to be enabled as well, as it depends on certain functionality
+	   provided by that option.
+
+config DRM_PANEL_eCV5546_SIMPLE_DSI
+	tristate "support for eys3d simple dsi panels"
+	depends on OF
+	depends on DRM_eCV5546
+	select VIDEOMODE_HELPERS
+	default y
+	help
+	  DRM panel driver for dumb panels that need at most a regulator and
+	  a GPIO to be powered up. Optionally a backlight can be attached so
+	  that it can be automatically turned off when the panel goes into a
+	  low power state.

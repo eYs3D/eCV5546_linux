@@ -1,0 +1,22 @@
+#
+# AXI Bus subsystem configuration
+#
+menu "eYs3D SoC drivers"
+
+config EYS3D_AXI_MONITOR
+	tristate "eYs3D AXI monitor driver"
+	default n
+	help
+	  eYs3D breakpoint analysis of backbone-dram problem.
+	  In order to speed up the breakpoint analysis of the
+	  BackBone-Dram proble. Quickly locate which Master/Slave
+	  caused the system to crash.
+
+config EYS3D_AXI_ARBITER
+	tristate "eYs3D AXI arbiter driver"
+	default n
+	help
+	  Support issue rate limiter. Support dynamic AMBA Qos.
+	  Support total data accumulation for write and read.
+
+endmenu

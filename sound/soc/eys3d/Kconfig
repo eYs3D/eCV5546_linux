@@ -1,0 +1,15 @@
+menuconfig SND_SOC_EYS3D
+	tristate "ASoC support for eYs3D"
+	#depends on ARCH_EYS3D
+	select SND_SOC_SPDIF
+	default y
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the eYs3D SoCs' Audio interfaces. You will also need to
+	  select the audio interfaces to support below.
+
+config SND_SOC_AUD_eCV5546
+	tristate "support eCV5546 codec"
+	depends on SND_SOC_EYS3D && SOC_eCV5546
+	default y
+

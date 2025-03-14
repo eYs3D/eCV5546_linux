@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# eYs3D Pin control driver configuration
+#
+
+config PINCTRL_SPPCTL
+	tristate "eYs3D SP7021 PinMux and GPIO driver"
+	depends on SOC_SP7021
+	depends on OF && HAS_IOMEM
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select PINCONF
+	select PINMUX
+	select GPIOLIB
+	select OF_GPIO
+	help
+	  Say Y here to support eYs3D SP7021 pinmux controller.
+	  This driver requires the pinctrl framework.
+	  GPIO is provided by the same driver.
+	  To compile this driver as a module, choose M here.
+	  The module will be called sppinctrl.
+
+config PINCTRL_eCV5546
+	bool "eYs3D eCV5546 pin control and GPIO driver"
+	depends on SOC_eCV5546
+	depends on OF && HAS_IOMEM
+	select PINMUX
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select PINCONF
+	select GENERIC_PINCONF
+	select OF_GPIO
+	select GPIOLIB
+	select GPIO_SYSFS
+	select GENERIC_IRQ_CHIP
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to support eYs3D eCV5546 pin controller.
+	  The driver is selected automatically by platform.
+	  This driver requires the pinctrl framework.
+	  GPIO is provided by the same driver.
+
+config PINCTRL_DEBUG
+	bool "eYs3D pin control specific debug"
+	depends on SOC_eCV5546 && DEBUG_PINCTRL
+	help
+	  Say Y if you need to debug eYs3D pinmux driver in-depth.
+	  Pin control driver will output more messages if you enable
+	  this item. This function is dependent on DEBUG_PINCTRL. It
+	  should be enabled first.
