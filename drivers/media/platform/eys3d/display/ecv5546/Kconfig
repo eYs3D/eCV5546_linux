@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config VIDEO_eCV5546_DISP
+	tristate "eYs3D eCV5546 Display Driver"
+	depends on VIDEO_DEV && V4L_PLATFORM_DRIVERS && SOC_eCV5546
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
+	# select FB_eCV5546
+	default n
+	help
+	  Support for the eYs3D eCV5546 display driver.
+
+config VIDEO_eCV5546_DISP_DEBUG
+	bool "External Debug Support"
+	depends on VIDEO_eCV5546_DISP
+	help
+	  Say Y here, if you want to have debug support.
+	  Debug function is reserved for display further check.
+	  echo "dump all" > /sys/module/display_ecv5546/parameter/debug
+	  can show more detailed information for display driver.
+
+config VIDEO_eCV5546_DISP_PI_PANEL
+	bool "Built-in Raspberry Pi 7-inch Touch-screen I2C Controller"
+	depends on VIDEO_eCV5546_DISP
+	default n
+	help
+	  Say Y here, if you want to use Raspberry Pi 7-inch touch-screen
+	  800x480 DSI panel.
+	  Note that this I2C controller only supports DSI function.
+	  It does not include touch-screen function.
+
+config VIDEO_eCV5546_DISP_LT8912B
+	bool "Built-in LT8912B DSI-to-HDMI Bridge (I2C) Controller"
+	depends on VIDEO_eCV5546_DISP
+	default n
+	help
+	  Say Y here, if you want to use Lontium LT8912B DSI-to-HDMI bridge.

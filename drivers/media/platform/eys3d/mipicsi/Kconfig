@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# eYs3D MIPI/CSI RX driver configuration
+#
+
+config VIDEO_EYS3D_eCV5546_CSI2
+	tristate "eYs3D eCV5546 MIPI CSI-2 RX Driver"
+	depends on VIDEO_DEV && OF
+	depends on SOC_eCV5546
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select RESET_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  Support for eYs3D MIPI CSI-2 receiver.
+	  Supports eCV5546 SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sp-mipi-ecv5546.
+
+config VIDEO_EYS3D_eCV5546_VIN
+	tristate "eYs3D eCV5546 Video Input (VIN) Driver"
+	depends on VIDEO_DEV && OF
+	depends on SOC_eCV5546
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
+	help
+	  Support for eYs3D Video Input (VIN) driver.
+	  Supports eCV5546 SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sp-vin-ecv5546.

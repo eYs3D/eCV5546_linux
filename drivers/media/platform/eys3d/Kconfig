@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
+
+
+source "drivers/media/platform/eys3d/display/ecv5546/Kconfig"
+source "drivers/media/platform/eys3d/mipicsi/Kconfig"
+source "drivers/media/platform/eys3d/gdc/Kconfig"
+
