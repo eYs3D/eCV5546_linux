@@ -6,29 +6,37 @@
 //#define ENABLE_DMATX6
 //#define ENABLE_DMATX7
 
-#define IMX219_IN3
-//#define IMX307_IN3
-//#define IMX708_IN3
-//#define OV5640_IN3
-//#define OV5647_IN3
-//#define TP2815_IN3
-//#define TP2815_IN3_1LANE
-//#define TP2815_IN3_2VC
+//#define MIPI_CSI_4VC
+//#define IMX219_IN2
+//#define IMX219_IN5
+//#define IMX708_IN2
+//#define IMX708_IN5
+//#define OV5640_IN2
+//#define OV5640_IN5
+//#define OV5647_IN2
+//#define OV5647_IN5
+//#define SP000_IN5
+//#define TP2815_IN2
+//#define TP2815_IN2_1LANE
+//#define TP2815_IN2_2LANES
+//#define TP2815_IN2_2VC
+//#define TP2815_IN5
+//#define TP2815_IN5_1LANE
+//#define TP2815_IN5_2LANES
+//#define TP2815_IN5_2VC
+//#define TP2815_IN5_4VC
+//#define VD55FLOOD_IN2
 
 #define AP6256_WIFI
 #define AP6256_BT
 
-
-//#define DISP_MIPITX_DSI_PANEL_240X320
-//#define DISP_MIPITX_DSI_PANEL_480X1280
-//#define DISP_MIPITX_DSI_PANEL_800x480
-#define RASPBERRYPI_DSI_PANEL
+#define LT8912B_HDMI_ENABLE
 
 #include "ecv5546-common.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "eYs3D eCV5546 IT1";
+	model = "eYs3D eCV5546 YX5001";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon loglevel=8 no_console_suspend ";
@@ -84,14 +92,14 @@
 			no-map;
 		};
 
-		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x51bfffff, total 40M */
+		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x593fffff, total 160M */
 		mipicsirx_reserve: mipicsirx@4f400000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x4f400000 0x0 0x02800000>; // 4M alignment
+			reg = <0x0 0x4f400000 0x0 0x0a000000>; // 4M alignment
 			reusable;
 		};
 
-		/* 0x51c0000-0x5be00000, total 162M no use */
+		/* 0x5bc0000-0x5be00000, total 2M no use */
 
 		/* remoteproc reserve memory: 0x5be00000-0x5befffff, total 1M */
 		vdev0buffer: vdev0buffer@5be00000 {
@@ -163,48 +171,47 @@
 	};
 
 	clocks {
-#ifdef IMX219_IN3
 		imx219_clk: camera-imx219-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
-#endif
-#ifdef IMX307_IN3
+
 		imx307_clk: camera-imx708-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
-#endif
-#ifdef IMX708_IN3
+
 		imx708_clk: camera-imx708-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
-#endif
-#ifdef OV5640_IN3
+
 		ov5640_clk: camera-ov5640-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
-#endif
-#ifdef OV5647_IN3
+
 		ov5647_clk: camera-ov5647-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <25000000>;
 		};
-#endif
-#ifdef TP2815_IN3
+
 		tp2815_clk: camera-tp2815-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <27000000>;
 		};
-#endif
+
+		vd55flood_clk: camera-vd55flood-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <12000000>;
+		};
 	};
 
 	cpu_opp_table: opp-table {
@@ -257,7 +264,6 @@
 		};*/
 	};
 
-#ifdef IMX219_IN3
 	imx219_vana_2v8: imx219_vana_2v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx219_vana";
@@ -281,8 +287,7 @@
 		regulator-max-microvolt = <1200000>;
 		regulator-always-on;
 	};
-#endif
-#ifdef IMX307_IN3
+
 	imx307_vana_2v8: imx307_vana_2v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx307_vana";
@@ -306,8 +311,7 @@
 		regulator-max-microvolt = <1200000>;
 		regulator-always-on;
 	};
-#endif
-#ifdef OV5640_IN3
+
 	ov5640_avdd_2v8: ov5640_avdd_2v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "ov5640_avdd";
@@ -331,8 +335,7 @@
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
 	};
-#endif
-#ifdef OV5647_IN3
+
 	ov5647_avdd_2v8: ov5647_avdd_2v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "ov5647_avdd";
@@ -356,8 +359,7 @@
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
 	};
-#endif
-#ifdef IMX708_IN3
+
 	imx708_vana1_2v8: imx708_vana1_2v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx708_vana1";
@@ -391,7 +393,44 @@
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
 	};
+
+	lsm6dso_vdd_3v3: lsm6dso_vdd_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	lsm6dso_vddio_1v8: lsm6dso_vddio_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vddio";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+#if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
+	lt8912b_1p8v: lt8912b_1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "lt8912b_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+		type = "a";
+		ddc-i2c-bus = <&i2c5>;
+
+		port {
+			hdmi_con_out: endpoint {
+				remote-endpoint = <&lt8912b_out>;
+			};
+		};
+	};
 #endif
+
 #ifdef AP6256_WIFI
 	bcmdhd_wlan {
 		compatible = "android,bcmdhd_wlan";
@@ -422,8 +461,55 @@
 		system-led {
 			label = "system-led";
 			gpios = <&pctl 0 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
+			default-state = "on";
 			linux,default-trigger = "heartbeat";
+		};
+
+		red-led {
+			label = "red-led";
+			gpios = <&pctl 23 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "none";
+		};
+
+		green-led {
+			label = "green-led";
+			gpios = <&pctl 24 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "none";
+		};
+
+		blue-led {
+			label = "blue-led";
+			gpios = <&pctl 25 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "none";
+			//status = "disabled";
+		};
+	};
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&adc 2>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <200>;
+
+		button-up {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <0>;
+		};
+
+		button-down {
+			label = "Volume Down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <1200000>;
+		};
+
+		button-enter {
+			label = "Enter";
+			linux,code = <KEY_ENTER>;
+			press-threshold-microvolt = <900000>;
 		};
 	};
 };
@@ -475,7 +561,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &uadbg {
@@ -609,17 +695,26 @@
 
 &spi_controller4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi_master4_pins>;
+	pinctrl-0 = <&spi_master4_pins &spi_cs_pins>;
+	cs-gpios = <&pctl 73 GPIO_ACTIVE_LOW>;
 	//dmas = <&ahbdma1 6 0 0>,
 	//       <&ahbdma1 7 0 0>;
 	//dma-names = "rx", "tx";
-	status = "disabled";
-
-	spi@0 {
-		compatible = "rohm,dh2228fv";
-		spi-max-frequency = <5000000>;
+	lsm6dso@0 {
+		compatible = "st,lsm6dso";
 		reg = <0x0>;
-		status = "disabled";
+		vdd-supply = <&lsm6dso_vdd_3v3>;   // define vdd power
+        vddio-supply = <&lsm6dso_vddio_1v8>; // define vddio power
+		spi-max-frequency = <1000000>;
+		// spi-cpol;
+		// spi-cpha;
+		accel-pm = <1>; // accelerometer power mode
+	/*	0: High Power Mode (LSM6DSO_DT_XL_HP_MODE)
+		1: Normal Low Power Mode (LSM6DSO_DT_XL_LP_NORMAL_MODE)
+		2: Ultra Low Power Mode (LSM6DSO_DT_XL_ULP_MODE) */
+		gyro-pm = <1>; // gyrometer power mode
+	/*	0 corresponds to LSM6DSO_DT_GY_HP_MODE, which likely represents a high-performance mode.
+		1 corresponds to LSM6DSO_DT_GY_NORMAL_MODE, which likely represents a normal operational mode. */
 	};
 };
 
@@ -640,23 +735,33 @@
 };
 
 &i2c1 {
-	i2c-sda-hold-time-ns = <2000>;
+	i2c-sda-hold-time-ns = <1000>;
 	//i2c-sda-falling-time-ns = <1>;
 	//i2c-scl-falling-time-ns = <1>;
-	clock-frequency = <100000>;
+	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo1_pins>;
-#if defined(IMX219_IN3) || defined(IMX307_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+};
+
+&i2c2 {
+	i2c-sda-hold-time-ns = <1000>;
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c_combo2_pins>;
+#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2) || defined(VD55FLOOD_IN2)
 	status = "okay";
 #else
 	status = "disabled";
 #endif
 
-#ifdef IMX219_IN3 /* Add imx219 subnode in i2c1 */
+#ifdef IMX219_IN2 /* Add imx219 subnode in i2c2 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_3: imx219@10 {
+	camera_2: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&imx219_clk>;
@@ -664,13 +769,13 @@
 		VDIG-supply = <&imx219_vdig_1v8>;
 		VDDL-supply = <&imx219_vddl_1v2>;
 		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_1_pins>;
-		//power-gpios = <&pctl 73 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
+		//pinctrl-0 = <&camera_4_pins>;
+		//power-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 75 GPIO_ACTIVE_HIGH>;
 
 		port {
-			imx219_3: endpoint {
-				remote-endpoint = <&csi2_3>;
+			imx219_2: endpoint {
+				remote-endpoint = <&csi2_2>;
 				data-lanes = <1 2>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <456000000>;
@@ -678,37 +783,11 @@
 		};
 	};
 #endif
-#ifdef IMX307_IN3 /* Add imx307 subnode in i2c1 */
+#ifdef IMX708_IN2 /* Add imx708 subnode in i2c2 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_3: imx307@3b {
-		compatible = "veye,csimx307";
-		reg = <0x3b>;
-		clocks = <&imx307_clk>;
-		clock-names = "xclk";
-		VANA-supply = <&imx307_vana_2v8>;
-		VDIG-supply = <&imx307_vdig_1v8>;
-		VDDL-supply = <&imx307_vddl_1v2>;
-		rotation = <0>;
-		orientation = <2>;
-
-		port {
-			imx307_3: endpoint {
-				remote-endpoint = <&csi2_3>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <297000000>;
-			};
-		};
-	};
-#endif
-#ifdef IMX708_IN3 /* Add imx708 subnode in i2c1 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_3: imx708@1a {
+	camera_2: imx708@1a {
 		compatible = "sony,imx708";
 		reg = <0x1a>;
 		clocks = <&imx708_clk>;
@@ -719,8 +798,8 @@
 		vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
 
 		port {
-			imx708_3: endpoint {
-				remote-endpoint = <&csi2_3>;
+			imx708_2: endpoint {
+				remote-endpoint = <&csi2_2>;
 				data-lanes = <1 2>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <450000000>;
@@ -728,11 +807,11 @@
 		};
 	};
 #endif
-#ifdef OV5640_IN3 /* Add ov5640 subnode in i2c1 */
+#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c2 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_3: ov5640@3c {
+	camera_2: ov5640@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
 		clocks = <&ov5640_clk>;
@@ -742,19 +821,19 @@
 		DVDD-supply = <&ov5640_dvdd_1v5>;
 
 		port {
-			ov5640_3: endpoint {
-				remote-endpoint = <&csi2_3>;
+			ov5640_2: endpoint {
+				remote-endpoint = <&csi2_2>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
 			};
 		};
 	};
 #endif
-#ifdef OV5647_IN3 /* Add ov5647 subnode in i2c1 */
+#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c2 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_3: ov5647@36 {
+	camera_2: ov5647@36 {
 		compatible = "ovti,ov5647";
 		reg = <0x36>;
 		clocks = <&ov5647_clk>;
@@ -763,8 +842,8 @@
 		dvdd-supply = <&ov5647_dvdd_1v5>;
 
 		port {
-			ov5647_3: endpoint {
-				remote-endpoint = <&csi2_3>;
+			ov5647_2: endpoint {
+				remote-endpoint = <&csi2_2>;
 				data-lanes = <1 2>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <297000000>;
@@ -772,29 +851,29 @@
 		};
 	};
 #endif
-#ifdef TP2815_IN3 /* Add tp2815 subnode in i2c1 */
+#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c2 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_3: tp2815@44 {
+	camera_2: tp2815@44 {
 		compatible = "Techpoint,tp2815";
 		reg = <0x44>;
 		clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN3_2VC
+	#ifdef TP2815_IN2_2VC
 		input-channel = <2>;
 	#else
 		input-channel = <1>;
 	#endif
 		input-standard = <0>;
 		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_1_pins>;
-		//power-gpios = <&pctl 73 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
+		//pinctrl-0 = <&camera_4_pins>;
+		//power-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 75 GPIO_ACTIVE_HIGH>;
 
 		port {
-			tp2815_3: endpoint {
-				remote-endpoint = <&csi2_3>;
-	#ifdef TP2815_IN3_1LANE
+			tp2815_2: endpoint {
+				remote-endpoint = <&csi2_2>;
+	#ifdef TP2815_IN2_1LANE
 				data-lanes = <1>;
 	#else
 				data-lanes = <1 2>;
@@ -805,14 +884,45 @@
 		};
 	};
 #endif
-};
+#ifdef VD55FLOOD_IN2 /* Add vd55flood subnode in i2c2 */
+	#address-cells = <1>;
+	#size-cells = <0>;
 
-&i2c2 {
-	i2c-sda-hold-time-ns = <1000>;
-	clock-frequency = <400000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c_combo2_pins>;
-	status = "disabled";
+	camera_2: vd55flood@18 {
+		compatible = "st,st-vd55flood";
+		reg = <0x18>;
+		clocks = <&vd55flood_clk>;
+		input-channel = <4>;
+		input-standard = <0>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&camera_2_pins>;
+		//vddlv8-gpios = <&pctl 60 GPIO_ACTIVE_HIGH>;
+		//power-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
+		//shtdn-gpios = <&pctl 27 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 58 GPIO_ACTIVE_HIGH>;
+		nvmem = <&mc24c08>;
+		nvmem-names = "vd55flood-nvmem";
+
+		port {
+			vd55flood_2: endpoint {
+				remote-endpoint = <&csi2_2>;
+				data-lanes = <1 2>;
+				clock-continuous;
+				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+
+	mc24c08: mc24c08@50 {
+		label = "vd55flood-nvmem";
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+		size = <8192>;
+		address-width = <16>;
+		read-only;
+	};
+#endif
 };
 
 &i2c3 {
@@ -820,7 +930,9 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo3_pins>;
-	status = "disabled";
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
 };
 
 &i2c4 {
@@ -832,47 +944,78 @@
 
 	#address-cells = <1>;
 	#size-cells = <0>;
-#if defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode in i2c4 */
-	raspberrypi_lcd: lcd@45 {
-		compatible = "raspberrypi,7inch-touchscreen-panel";
-		reg = <0x45>;
+#if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode in i2c4 */
+	lontium_lt8912b: hdmi@48 {
+		compatible = "lontium,lt8912b";
+		reg = <0x48>;
+
+		vcchdmipll-supply = <&lt8912b_1p8v>;
+		vcchdmitx-supply = <&lt8912b_1p8v>;
+		vcclvdspll-supply = <&lt8912b_1p8v>;
+		vcclvdstx-supply = <&lt8912b_1p8v>;
+		vccmipirx-supply = <&lt8912b_1p8v>;
+		vccsysclk-supply = <&lt8912b_1p8v>;
+		vdd-supply = <&lt8912b_1p8v>;
+		//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
 
 		status = "okay";
-		port {
-			panel_dsi_port: endpoint {
-				remote-endpoint = <&dsi0_out1>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				lt8912b_in: endpoint {
+					data-lanes = <1 2 3 4>;
+					remote-endpoint = <&dsi0_out0>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				lt8912b_out: endpoint {
+					remote-endpoint = <&hdmi_con_out>;
+				};
 			};
 		};
 	};
-
-	ft5x06_ts: touchscreen@38 {
-		compatible = "edt,edt-ft5406";
-		reg = <0x38>;
-		status = "okay";
-
-		touchscreen-size-x = <800>;
-		touchscreen-size-y = <480>;
-		touchscreen-inverted-x;
-		touchscreen-inverted-y;
-	};
 #endif
 
-	es8326: codec@19 {
-		compatible = "everest,es8326";
-		reg = <0x19>;
+	es8316: codec@11 {
+		compatible = "everest,es8316";
+		reg = <0x11>;
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&audcodec_pins>;
 		audcodec-gpios = <&pctl 27 GPIO_ACTIVE_HIGH>;
+#if 0
+		port {
+			es8316_p0_0: endpoint {
+				remote-endpoint = <&i2s0_p0_0>;
+			};
+		};
+#endif
 	};
 };
 
 &i2c5 {
+#if defined(LT8912B_HDMI_ENABLE)
+	i2c-sda-hold-time-ns = <2000>;
+	clock-frequency = <100000>;
+#else
 	i2c-sda-hold-time-ns = <1000>;
 	clock-frequency = <400000>;
+#endif
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo5_pins>;
+#if defined(LT8912B_HDMI_ENABLE)
+	status = "okay";
+#else
 	status = "disabled";
+#endif
+	rtc1: rtc-PCF85363@51 {
+		compatible = "nxp,pcf85363";
+		reg = <0x51>;
+	};
 };
 
 &i2c6 {
@@ -880,7 +1023,165 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo6_pins>;
+#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(SP000_IN5) || defined(TP2815_IN5)
+	status = "okay";
+#else
 	status = "disabled";
+#endif
+
+#ifdef SP000_IN5 /* Add sp000 subnode in i2c6 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: sp000@10 {
+		compatible = "eys3d,sp000";
+		reg = <0x10>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera_5_pins>;
+		//power-gpios = <&pctl 81 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 82 GPIO_ACTIVE_HIGH>;
+		stream-gpios = <&pctl 60 GPIO_ACTIVE_HIGH>;
+
+		port {
+			sp000_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+#endif
+#ifdef IMX219_IN5 /* Add imx219 subnode in i2c6 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: imx219@10 {
+		compatible = "sony,imx219";
+		reg = <0x10>;
+		clocks = <&imx219_clk>;
+		VANA-supply = <&imx219_vana_2v8>;
+		VDIG-supply = <&imx219_vdig_1v8>;
+		VDDL-supply = <&imx219_vddl_1v2>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&camera_5_pins>;
+		//power-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 60 GPIO_ACTIVE_HIGH>;
+
+		port {
+			imx219_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+#endif
+#ifdef IMX708_IN5 /* Add imx708 subnode in i2c6 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: imx708@1a {
+		compatible = "sony,imx708";
+		reg = <0x1a>;
+		clocks = <&imx708_clk>;
+		clock-names = "inclk";
+		vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
+		vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
+		vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
+		vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
+
+		port {
+			imx708_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <450000000>;
+			};
+		};
+	};
+#endif
+#ifdef OV5640_IN5 /* Add ov5640 subnode in i2c6 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		clocks = <&ov5640_clk>;
+		clock-names = "xclk";
+		AVDD-supply = <&ov5640_avdd_2v8>;
+		DOVDD-supply = <&ov5640_dovdd_1v8>;
+		DVDD-supply = <&ov5640_dvdd_1v5>;
+
+		port {
+			ov5640_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+#endif
+#ifdef OV5647_IN5 /* Add ov5647 subnode in i2c6 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: ov5647@36 {
+		compatible = "ovti,ov5647";
+		reg = <0x36>;
+		clocks = <&ov5647_clk>;
+		avdd-supply = <&ov5647_avdd_2v8>;
+		dovdd-supply = <&ov5647_dovdd_1v8>;
+		dvdd-supply = <&ov5647_dvdd_1v5>;
+		// pwdn-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov5647_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <297000000>;
+			};
+		};
+	};
+#endif
+#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c6 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: tp2815@44 {
+		compatible = "Techpoint,tp2815";
+		reg = <0x44>;
+		clocks = <&tp2815_clk>;
+	#ifdef TP2815_IN5_4VC
+		input-channel = <4>;
+	#elif defined(TP2815_IN5_2VC)
+		input-channel = <2>;
+	#else
+		input-channel = <1>;
+	#endif
+		input-standard = <0>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&camera_5_pins>;
+		//power-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 60 GPIO_ACTIVE_HIGH>;
+
+		port {
+			tp2815_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+	#ifdef TP2815_IN5_2LANES
+				data-lanes = <1 2>;
+	#else
+				data-lanes = <1 2 3 4>;
+	#endif
+				clock-continuous;
+				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+#endif
 };
 
 &i2c7 {
@@ -945,19 +1246,7 @@
 };
 
 &mipicsirx2 {
-	status = "disabled";
-};
-
-&vin4 {
-	status = "disabled";
-};
-
-&vin5 {
-	status = "disabled";
-};
-
-&mipicsirx3 {
-#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
+#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2) || defined(VD55FLOOD_IN2)
 	status = "okay";
 #else
 	status = "disabled";
@@ -965,16 +1254,16 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3)
+#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(VD55FLOOD_IN2)
 	num_channels = <1>;
-#elif defined(TP2815_IN3)
-	#ifdef TP2815_IN3_2VC
+#elif defined(TP2815_IN2)
+	#ifdef TP2815_IN2_2VC
 	num_channels = <2>;
 	#else
 	num_channels = <1>;
 	#endif
 #else
-	num_channels = <2>;
+	num_channels = <4>;
 #endif
 
 	ports {
@@ -982,72 +1271,87 @@
 		#size-cells = <0>;
 
 		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN3 /* Add imx219 subnode in i2c1 */
+#ifdef IMX219_IN2 /* Add imx219 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
 			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&imx219_3>;
+			csi2_2: endpoint {
+				remote-endpoint = <&imx219_2>;
 				bus-type = <4>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
 			};
 		};
 #endif
-#ifdef IMX708_IN3 /* Add imx708 subnode in i2c1 */
+#ifdef IMX708_IN2 /* Add imx708 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
 			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&imx708_3>;
+			csi2_2: endpoint {
+				remote-endpoint = <&imx708_2>;
 				bus-type = <4>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
 			};
 		};
 #endif
-#ifdef OV5640_IN3 /* Add ov5640 subnode in i2c1 */
+#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
 			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&ov5640_3>;
+			csi2_2: endpoint {
+				remote-endpoint = <&ov5640_2>;
 				bus-type = <4>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
 			};
 		};
 #endif
-#ifdef OV5647_IN3 /* Add ov5647 subnode in i2c1 */
+#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
 			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&ov5647_3>;
+			csi2_2: endpoint {
+				remote-endpoint = <&ov5647_2>;
 				bus-type = <4>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
 			};
 		};
 #endif
-#ifdef TP2815_IN3 /* Add tp2815 subnode in i2c1 */
+#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
 			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&tp2815_3>;
+			csi2_2: endpoint {
+				remote-endpoint = <&tp2815_2>;
 				bus-type = <4>;
 				clock-lanes = <0>;
-	#ifdef TP2815_IN3_1LANE
+	#ifdef TP2815_IN2_1LANE
 				data-lanes = <1>;
-	#else
+	#elif defined(TP2815_IN2_2LANES)
 				data-lanes = <1 2>;
+	#else
+				data-lanes = <1 2 3 4>;
 	#endif
+			};
+		};
+#endif
+#ifdef VD55FLOOD_IN2 /* Add vd55flood subnode in i2c2 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_2: endpoint {
+				remote-endpoint = <&vd55flood_2>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
 			};
 		};
 #endif
@@ -1059,22 +1363,32 @@
 
 			reg = <1>;
 
-			csi3vin6: endpoint@0 {
+			csi2vin4: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&vin6csi3>;
+				remote-endpoint = <&vin4csi2>;
 			};
 
-			csi3vin7: endpoint@1 {
+			csi2vin5: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&vin7csi3>;
+				remote-endpoint = <&vin5csi2>;
+			};
+
+			csi2vin6: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&vin6csi2>;
+			};
+
+			csi2vin7: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&vin7csi2>;
 			};
 		};
 	};
 };
 
-&vin6 {
+&vin4 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
+#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2) || defined(VD55FLOOD_IN2)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1091,9 +1405,63 @@
 
 			reg = <1>;
 
-			vin6csi3: endpoint@3 {
-				reg = <3>;
-				remote-endpoint = <&csi3vin6>;
+			vin4csi2: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&csi2vin4>;
+			};
+		};
+	};
+};
+
+&vin5 {
+	memory-region = <&mipicsirx_reserve>;
+#if defined(TP2815_IN2) && defined(TP2815_IN2_2VC)
+	status = "okay";
+#else
+	status = "disabled";
+#endif
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Input port node, default mode, connected to CSI-2 receivers */
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			reg = <1>;
+
+			vin5csi2: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&csi2vin5>;
+			};
+		};
+	};
+};
+
+&mipicsirx3 {
+	status = "disabled";
+};
+
+&vin6 {
+	memory-region = <&mipicsirx_reserve>;
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Input port node, default mode, connected to CSI-2 receivers */
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			reg = <1>;
+
+			vin6csi2: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&csi2vin6>;
 			};
 		};
 	};
@@ -1101,11 +1469,7 @@
 
 &vin7 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(TP2815_IN3) && defined(TP2815_IN3_2VC)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
 
 	ports {
 		#address-cells = <1>;
@@ -1118,9 +1482,9 @@
 
 			reg = <1>;
 
-			vin7csi3: endpoint@3 {
-				reg = <3>;
-				remote-endpoint = <&csi3vin7>;
+			vin7csi2: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&csi2vin7>;
 			};
 		};
 	};
@@ -1139,23 +1503,245 @@
 };
 
 &mipicsirx5 {
+#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(SP000_IN5) || defined(TP2815_IN5)
+	status = "okay";
+#else
 	status = "disabled";
+#endif
+
+	/* Virtual channel related properties */
+	max_channels = <4>;
+#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(SP000_IN5)
+	num_channels = <1>;
+#elif defined(TP2815_IN5)
+	#ifdef TP2815_IN5_4VC
+	num_channels = <4>;
+	#elif defined(TP2815_IN5_2VC)
+	num_channels = <2>;
+	#else
+	num_channels = <1>;
+	#endif
+#else
+	num_channels = <4>;
+#endif
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
+#ifdef IMX219_IN5 /* Add imx219 subnode in i2c6 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&imx219_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+#endif
+#ifdef IMX708_IN5 /* Add imx708 subnode in i2c6 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&imx708_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+#endif
+#ifdef OV5640_IN5 /* Add ov5640 subnode in i2c6 */
+		port@0 {
+			reg = <0>;
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&ov5640_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+#endif
+#ifdef OV5647_IN5 /* Add ov5647 subnode in i2c6 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&ov5647_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+#endif
+#ifdef SP000_IN5 /* Add sp000 subnode in i2c6 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&sp000_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+#endif
+#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c6 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&tp2815_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+	#ifdef TP2815_IN5_1LANE
+				data-lanes = <1>;
+	#elif defined(TP2815_IN5_2LANES)
+				data-lanes = <1 2>;
+	#else
+				data-lanes = <1 2 3 4>;
+	#endif
+			};
+		};
+#endif
+
+		/* Output port node, multiple endpoints, connected to VIN modules */
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			reg = <1>;
+
+			csi5vin10: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&vin10csi5>;
+			};
+
+			csi5vin11: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&vin11csi5>;
+			};
+
+			csi5vin12: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&vin12csi5>;
+			};
+
+			csi5vin13: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&vin13csi5>;
+			};
+		};
+	};
 };
 
 &vin10 {
+	memory-region = <&mipicsirx_reserve>;
+#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(SP000_IN5) || defined(TP2815_IN5)
+	status = "okay";
+#else
 	status = "disabled";
+#endif
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Input port node, default mode, connected to CSI-2 receivers */
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			reg = <1>;
+
+			vin10csi5: endpoint@5 {
+				reg = <5>;
+				remote-endpoint = <&csi5vin10>;
+			};
+		};
+	};
 };
 
 &vin11 {
+	memory-region = <&mipicsirx_reserve>;
+#if (defined(TP2815_IN5) && defined(TP2815_IN5_2VC))
+	status = "okay";
+#else
 	status = "disabled";
+#endif
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Input port node, default mode, connected to CSI-2 receivers */
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			reg = <1>;
+
+			vin11csi5: endpoint@5 {
+				reg = <5>;
+				remote-endpoint = <&csi5vin11>;
+			};
+		};
+	};
 };
 
 &vin12 {
+	memory-region = <&mipicsirx_reserve>;
 	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Input port node, default mode, connected to CSI-2 receivers */
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			reg = <1>;
+
+			vin12csi5: endpoint@5 {
+				reg = <5>;
+				remote-endpoint = <&csi5vin12>;
+			};
+		};
+	};
 };
 
 &vin13 {
+	memory-region = <&mipicsirx_reserve>;
 	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Input port node, default mode, connected to CSI-2 receivers */
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			reg = <1>;
+
+			vin13csi5: endpoint@5 {
+				reg = <5>;
+				remote-endpoint = <&csi5vin13>;
+			};
+		};
+	};
 };
 
 &display { /* legacy display off */
@@ -1180,49 +1766,6 @@
 &mipi_dsi0 { /* drm display on */
 	status = "okay";
 
-#if defined(DISP_MIPITX_DSI_PANEL_480X1280)  /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
-	#address-cells = <1>;
-	#size-cells = <0>;
-	hxm0686tft_lcd: mipi_dsi_lcd@0 {
-		compatible = "eys3d,lx-hxm0686tft-001";
-		reg = <0>;
-		status = "okay";
-		port {
-			panel_dsi_port: endpoint {
-				remote-endpoint = <&dsi0_out1>;
-			};
-		};
-	};
-#endif
-#if defined(DISP_MIPITX_DSI_PANEL_240X320)  /* Add DISP_MIPITX_DSI_PANEL_240X320 subnode in mipidsi */
-	#address-cells = <1>;
-	#size-cells = <0>;
-	tcxd024iblon_lcd: mipi_dsi_lcd@1 {
-		compatible = "eys3d,xinli-tcxd024iblon-2";
-		reg = <1>;
-		status = "okay";
-		port {
-			panel_dsi_port: endpoint {
-				remote-endpoint = <&dsi0_out1>;
-			};
-		};
-	};
-#endif
-#if defined(DISP_MIPITX_DSI_PANEL_800x480)  /* Add DISP_MIPITX_DSI_PANEL_800x480 subnode in mipidsi */
-	#address-cells = <1>;
-	#size-cells = <0>;
-	mipi_dsi_lcd@2 {
-		compatible = "eys3d,wks-wks70wv055-wct";
-		reg = <2>;
-		status = "okay";
-		port {
-			panel_dsi_port: endpoint {
-				remote-endpoint = <&dsi0_out1>;
-			};
-		};
-	};
-#endif
-
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1244,14 +1787,13 @@
 			#size-cells = <0>;
 			reg = <1>;
 
-			/* dsi output port 0 for mipi panel */
-			#if defined(RASPBERRYPI_DSI_PANEL) || defined(DISP_MIPITX_DSI_PANEL_480X1280) || \
-				defined(DISP_MIPITX_DSI_PANEL_240X320) || defined(DISP_MIPITX_DSI_PANEL_800x480)
-			dsi0_out1: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&panel_dsi_port>;
+			/* dsi output port 0 for mipi lt8912b bridge */
+#if defined(LT8912B_HDMI_ENABLE)
+			dsi0_out0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&lt8912b_in>;
 			};
-			#endif
+#endif
 		};
 	};
 };
@@ -1280,7 +1822,57 @@
 };
 
 &ethernet {
-	status = "disabled";
+	clock-frequency = <125000000>;
+	mac-mode = "rgmii";
+
+	/* Reset time is 30ms, 150ms for rtl8211f */
+	snps,reset-delays-us = <0 30000 150000>;
+	/* fixed-burst-->speed little high*/
+	snps,mixed-burst;
+	//snps,fixed-burst;
+	/* default threshold=64, real use 128 */
+	//snps,force_thresh_dma_mode;
+	/* default */
+	snps,force_sf_dma_mode;
+	/*LPI switch*/
+	snps,en-tx-lpi-clockgating;
+	snps,multicast-filter-bins = <64>;
+	snps,perfect-filter-entries = <128>;
+	snps,ps-speed = <1000>;
+	//snps,pbl = <16>;
+	//snps,txpbl = <16>;
+	//snps,rxpbl = <16>;
+	//snps,no-pbl-x8;
+	//snps,tso;
+	rx-fifo-depth = <16384>;
+	tx-fifo-depth = <16384>;
+
+	clk_csr = <4>;
+	phy-mode = "rgmii";
+	phy-handle = <&phy0>;
+	/*Different RGMII TX softpad setting for PHY-link-speed 100M and 1000M*/
+	rgmii-tx-softpad-100m = <0x00045E00>;
+	rgmii-tx-softpad-1000m = <0x00025600>;
+	/*id-->use phy hardway tx/rx delay 2ns, txid-->use phy hardway tx delay 2ns, rxid-->use phy hardway rx delay 2ns*/
+	//phy-mode = "rgmii-id";
+	//phy-mode = "rgmii-txid";
+	//phy-mode = "rgmii-rxid";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac_pins>;
+	//status = "disabled";
+
+	mdio0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
+			reset-assert-us = <1000>;
+			reset-deassert-us = <2000>;
+		};
+	};
 };
 
 &mmc0 {
@@ -1335,23 +1927,23 @@
 };
 
 &sp_uphy0 {
-	status = "disabled";
 };
 
 &ehci0 {
-	status = "disabled";
 };
 
 &ohci0 {
-	status = "disabled";
 };
 
 &udc0 {
-	status = "disabled";
+	status = "ok";
+	dr_mode = "otg";
 };
 
 &otg {
-	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&otg_pins>;
+	status = "ok";
 };
 
 &extcon_dwc3drd {
@@ -1375,6 +1967,7 @@
 &audio {
 	pinctrl-names = "default";
 	pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>;
+	//status = "disabled";
 };
 
 &sp_spinor0 {
@@ -1564,6 +2157,13 @@
 		function = "GPIO";
 		pins = "GPIO66";
 	};
+
+#ifdef SP000_IN5 /* Add sp000 subnode in i2cm6 */
+	camera_5_pins: pinmux_camera_0-pins {
+		function = "GPIO";
+		pins = "GPIO60";
+	};
+#endif
 
 	uart0_pins: pinmux_uart0-pins {
 		function = "UART0";
@@ -1874,7 +2474,7 @@
 
 	running_leds_pins: pinmux_running_leds-pins {
 		function = "GPIO";
-		pins = "GPIO0";
+		pins = "GPIO0", "GPIO23", "GPIO24", "GPIO25";
 	};
 
 	ap6256_wifi_ctrl_pins: ap6256_wifi_ctrl-pins {
@@ -1885,6 +2485,16 @@
 	ap6256_bt_ctrl_pins: ap6256_bt_ctrl-pins {
 		function = "GPIO";
 		pins = "GPIO57";
+	};
+	
+	otg_pins: pinmux_otg_pins {
+		function = "USB_OTG";
+		groups = "USB_OTG";
+	};
+	
+	spi_cs_pins: spi_cs_pins {
+		function = "GPIO";
+		pins = "GPIO73";
 	};
 };
 

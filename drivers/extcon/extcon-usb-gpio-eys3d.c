@@ -90,7 +90,7 @@ static int pre_id = 2;
 static int pre_u3linkstate = 0xff;
 static void usb_extcon_detect_cable(struct work_struct *work)
 {
-	int id, vbus, u3linkstate;
+	int id, vbus, dir, u3linkstate;
 	struct usb_extcon_info *info = container_of(to_delayed_work(work),
 						    struct usb_extcon_info,
 						    wq_detcable);
@@ -99,7 +99,7 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 	phy_reg = (struct u2phy_regs *)info->u2phy_base_addr;
 	/* check ID and VBUS and update cable state */
 	id = info->id_gpiod ?
-		gpiod_get_value_cansleep(info->id_gpiod) : 1;
+		gpiod_get_value_cansleep(info->id_gpiod) : 0;
 	vbus = info->vbus_gpiod ?
 		gpiod_get_value_cansleep(info->vbus_gpiod) : id;
 	/* workaround for vbus issue */
@@ -123,7 +123,8 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 	}
 
 	if (id != pre_id) {
-		if (info->spphydata->dir == gpiod_get_value(info->spphydata->gpiodir)) {
+		dir = info->spphydata->gpiodir ? gpiod_get_value(info->spphydata->gpiodir) : 0;
+		if (info->spphydata->dir == dir) {
 			pre_id = id;
 			//printk("@@@usb_extcon_detect_cable id 0x%x vbus 0x%x\n", id, vbus);
 			/* at first we clean states which are no longer active */
@@ -174,16 +175,9 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	info->id_gpiod = devm_gpiod_get_optional(&pdev->dev, "id", GPIOD_IN);
 	info->vbus_gpiod = devm_gpiod_get_optional(&pdev->dev, "vbus", GPIOD_IN);
 
-	if (!info->id_gpiod && !info->vbus_gpiod) {
-		dev_err(dev, "failed to get gpios\n");
-		return -ENODEV;
-	}
+	if (!info->id_gpiod && !info->vbus_gpiod)
+		pr_info("[USB3EXTCON] no id gpios\n");
 
-	if (IS_ERR(info->id_gpiod))
-		return PTR_ERR(info->id_gpiod);
-
-	if (IS_ERR(info->vbus_gpiod))
-		return PTR_ERR(info->vbus_gpiod);
 	/* Usb3 vbus eco solution */
 	stamp = ioremap(0xf8800000, 1);
 	info->chip_version = readl(stamp);

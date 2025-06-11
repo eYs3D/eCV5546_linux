@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Driver for VD55FLOOD ToF module
  *
- * Copyright (C) 2023 STMicroelectronics SA
+ * Copyright (C) 2023-2024 STMicroelectronics SA
  */
 
 #include <linux/version.h>
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
@@ -23,13 +25,13 @@
 #include <media/v4l2-subdev.h>
 
 /* Backward compatibility */
-#if KERNEL_VERSION(5, 18, 0) >= LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)
 #define MIPI_CSI2_DT_RAW12	0x2c
 #else
 #include <media/mipi-csi2.h>
 #endif
 
-#if KERNEL_VERSION(5, 15, 0) >= LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)
 #define HZ_PER_MHZ		1000000UL
 #else
 #include <linux/units.h>
@@ -61,13 +63,26 @@
 #define VD55FLOOD_STREAMING_START		BIT(1)
 #define VD55FLOOD_REG_EXT_CLOCK			VD55FLOOD_REG_32BIT(0x0440)
 #define VD55FLOOD_EXT_CLOCK_12MHZ		(12 * HZ_PER_MHZ)
-#define VD55FLOOD_REG_VT_CTRL			VD55FLOOD_REG_16BIT(0x051f)
+#define VD55FLOOD_REG_VT_CTRL			VD55FLOOD_REG_8BIT(0x051f)
 #define VD55FLOOD_REG_OIF_CTRL			VD55FLOOD_REG_16BIT(0x0526)
-#define VD55FLOOD_REG_CLK_PLL_MIPI		VD55FLOOD_REG_16BIT(0x045C)
+#define VD55FLOOD_REG_DARKCAL_CTRL		VD55FLOOD_REG_16BIT(0x0528)
+#define VD55FLOOD_DARKCAL_CTRL_MODE		GENMASK(1, 0)
+#define VD55FLOOD_DARKCAL_CTRL_MODE_OFF		0x0
+#define VD55FLOOD_DARKCAL_CTRL_MODE_AUTO	0x1
+#define VD55FLOOD_DARKCAL_CTRL_MODE_BYPASS	0x3
+#define VD55FLOOD_DARKCAL_CTRL_MODE_CLEAR	~VD55FLOOD_DARKCAL_CTRL_MODE
+#define VD55FLOOD_DARKCAL_CTRL_STATS_CTRL	BIT(2)
+#define VD55FLOOD_DARKCAL_CTRL_DARKLINES_CTRL	BIT(3)
+#define VD55FLOOD_DARKCAL_CTRL_LEAKYNESS	GENMASK(7, 4)
+#define VD55FLOOD_DARKCAL_CTRL_NOISE_GEN	GENMASK(15, 8)
+#define VD55FLOOD_DARKCAL_CTRL_DEFAULT_VALUE	\
+	(FIELD_PREP(VD55FLOOD_DARKCAL_CTRL_MODE, \
+		    VD55FLOOD_DARKCAL_CTRL_MODE_AUTO) | \
+	FIELD_PREP(VD55FLOOD_DARKCAL_CTRL_LEAKYNESS, 0x7))
+#define VD55FLOOD_REG_CLK_PLL_MIPI		VD55FLOOD_REG_32BIT(0x045C)
 #define VD55FLOOD_REG_MAGIC_BYPASS		VD55FLOOD_REG_32BIT(0x0f28)
 #define VD55FLOOD_REG_SAFETY_WORKAROUND		VD55FLOOD_REG_8BIT(0xbc44)
 #define VD55FLOOD_REG_FWPATCH_REVISION		VD55FLOOD_REG_16BIT(0x000C)
-#define VD55FLOOD_REG_ERROR_CODE		VD55FLOOD_REG_16BIT(0x00B0)
 #define VD55FLOOD_REG_SPI_START_ADDRESS		VD55FLOOD_REG_8BIT(0x0418)
 #define VD55FLOOD_REG_SPI_NB_OF_WORDS		VD55FLOOD_REG_8BIT(0x041a)
 #define VD55FLOOD_REG_STBY			VD55FLOOD_REG_8BIT(0x0402)
@@ -78,6 +93,11 @@
 #define VD55FLOOD_FORMAT_CTRL_RAW_12BITS	BIT(1)
 #define VD55FLOOD_FORMAT_CTRL_SLC_SUPER_FRAME	BIT(0)
 #define VD55FLOOD_REG_NB_FRAME_SEQUENCE		VD55FLOOD_REG_8BIT(0x0507)
+#define VD55FLOOD_REG_MIN_FRAME_LENGTH		VD55FLOOD_REG_32BIT(0x020c)
+#define VD55FLOOD_REG_SUPERFRAME_LENGTH		VD55FLOOD_REG_32BIT(0x055c)
+#define VD55FLOOD_REG_RESAMPLING_ENABLE		VD55FLOOD_REG_8BIT(0x050b)
+#define VD55FLOOD_REG_RESAMPLING_READY		VD55FLOOD_REG_8BIT(0x0601)
+#define VD55FLOOD_RESAMPLING_READY_VALUE	BIT(0)
 #define VD55FLOOD_REG_FRAME_COMPOSITION(ctx) \
 	VD55FLOOD_REG_8BIT(0x0580 + VD55FLOOD_CTX_STATICS_OFFSET * (ctx))
 #define VD55FLOOD_FRAME_COMPOSITION_VM_3D_RAW	0x20
@@ -93,8 +113,12 @@
 	VD55FLOOD_REG_16BIT(0x0640 + VD55FLOOD_CTX_OFFSET * (ctx))
 #define VD55FLOOD_REG_EXPOSURE_TIME_LONG(ctx) \
 	VD55FLOOD_REG_32BIT(0x0644 + VD55FLOOD_CTX_OFFSET * (ctx))
-#define VD55FLOOD_EXPOSURE_TIME_LONG_COARSE_SHIFT	16
-#define VD55FLOOD_EXPOSURE_TIME_LONG_FINE_SHIFT	0
+#define VD55FLOOD_EXPOSURE_TIME_LONG_COARSE_MASK	GENMASK(31, 16)
+#define VD55FLOOD_EXPOSURE_TIME_LONG_FINE_MASK	GENMASK(12, 0)
+#define VD55FLOOD_EXPOSURE_TIME_LONG_NORMAL	32
+#define VD55FLOOD_EXPOSURE_TIME_LONG_BINNED	6
+#define VD55FLOOD_EXPOSURE_TIME_MAXIMUM_NORMAL	56
+#define VD55FLOOD_EXPOSURE_TIME_MAXIMUM_BINNED	28
 #define VD55FLOOD_REG_ITOF_CLK_TARGET(ctx) \
 	VD55FLOOD_REG_32BIT(0x064c + VD55FLOOD_CTX_OFFSET * (ctx))
 #define VD55FLOOD_REG_GLOBAL_PHASE_OFFSET(ctx) \
@@ -109,6 +133,15 @@
 #define VD55FLOOD_REG_LASER_ID			VD55FLOOD_REG_32BIT(0x0500)
 #define VD55FLOOD_REG_LASER_SAFETY_35		VD55FLOOD_REG_16BIT(0xf7)
 
+#define VD55FLOOD_PATGEN_CTRL			VD55FLOOD_REG_16BIT(0x060E)
+#define VD55FLOOD_PATGEN_CTRL_TYPE_TAP1_FIELD	GENMASK(14, 8)
+#define VD55FLOOD_PATGEN_CTRL_TYPE_TAP0_FIELD	GENMASK(7, 1)
+#define VD55FLOOD_PATGEN_CTRL_REG_VALUE(pattern, enable) \
+	(FIELD_PREP(VD55FLOOD_PATGEN_CTRL_TYPE_TAP1_FIELD, pattern) | \
+	FIELD_PREP(VD55FLOOD_PATGEN_CTRL_TYPE_TAP0_FIELD, pattern) | \
+	(enable ? 1 : 0))
+
+#define VD55FLOOD_NVMEM_NAME			"vd55flood-nvmem"
 #define VD55FLOOD_NVMEM_REG_ID			0x0
 #define VD55FLOOD_NVMEM_REG_BASE		0x0
 #define VD55FLOOD_NVMEM_ID_VD55FLOOD		0x2082
@@ -121,13 +154,14 @@
 #define VD55FLOOD_WRITE_MULTIPLE_CHUNK_MAX	16
 #define VD55FLOOD_NB_POLARITIES			5
 #define VD55FLOOD_TIMEOUT_MS			500
-#define VD55FLOOD_LD_NVMEM_DATA_SIZE		1056
+#define VD55FLOOD_LD_NVMEM_DATA_SIZE		8192
 #define VD55FLOOD_CTX_STATICS_OFFSET		0x20
 #define VD55FLOOD_CTX_OFFSET			0x30
 #define VD55FLOOD_BIN_MODE_SHIFT		4
 #define VD55FLOOD_MEDIA_BUS_FMT_DEF		MEDIA_BUS_FMT_SGBRG12_1X12
 
 #define V4L2_CID_FREQ_NB			(V4L2_CID_USER_BASE | 0x1020)
+#define V4L2_CID_EE_DATA			(V4L2_CID_USER_BASE | 0x1021)
 
 #include "st-vd55flood_patch.c"
 
@@ -151,14 +185,19 @@ struct vd55flood_dev {
 	struct {
 		struct i2c_client *i2c_client;
 		u8 nvmem_data[VD55FLOOD_LD_NVMEM_DATA_SIZE];
+		struct nvmem_device *nvmem_dev;
 	} ld;
 	/* Lock to protect all members below */
 	struct mutex lock;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *pixel_rate_ctrl;
 	struct v4l2_ctrl *freq_nb_ctrl;
+	struct v4l2_ctrl *ee_ctrl;
+	struct v4l2_ctrl *pattern_ctrl;
+	struct v4l2_ctrl *expo_ctrl;
 	struct v4l2_mbus_framefmt fmt;
 	bool streaming;
+	u32 pattern;
 	const struct vd55flood_mode_info *current_mode;
 };
 
@@ -185,18 +224,38 @@ struct vd55flood_reg_list {
 	const struct vd55flood_reg *regs;
 };
 
+/* struct vd55flood_exposure_range - stores exposure min & max for a profile.
+ *
+ * @min minimal value
+ * @max maximum value
+ * @def default value
+ */
+struct vd55flood_exposure_range {
+	u8 min;
+	u8 max;
+	u8 def;
+};
+
 struct vd55flood_mode_info {
 	u32 width;
 	u32 height;
 	enum vd55flood_bin_mode bin_mode;
 	u8 freq_nb;
 	struct vd55flood_reg_list reg_list;
+	u32 superframe_length;
+	const struct vd55flood_exposure_range *const exposure;
 };
 
 struct vd55flood_fmt_desc {
 	u32 code;
 	u8 bpp;
 	u8 data_type;
+};
+
+static const char * const vd55flood_test_pattern_menu[] = {
+	"Disabled", /* 0x00 */
+	"Color bars", /* 0x08 */
+	"Inverted color bars", /* 0x09 */
 };
 
 static const struct vd55flood_fmt_desc vd55flood_supported_codes[] = {
@@ -232,10 +291,6 @@ static const struct vd55flood_reg mode_1freq_regs[] = {
 		VD55FLOOD_LVDS_DUTY_CYCLE_FALL_SHIFT},
 	{VD55FLOOD_REG_CONTEXT_REPEAT_COUNT(0), 1},
 	{VD55FLOOD_REG_NEXT_CONTEXT(0), 0},
-	{VD55FLOOD_REG_FRAME_LENGTH(0), 2368},
-	{VD55FLOOD_REG_EXPOSURE_TIME_LONG(1),
-		32 << VD55FLOOD_EXPOSURE_TIME_LONG_COARSE_SHIFT |
-		0 << VD55FLOOD_EXPOSURE_TIME_LONG_FINE_SHIFT},
 	{VD55FLOOD_REG_ITOF_CLK_TARGET(0), 20000000},
 	{VD55FLOOD_REG_GLOBAL_PHASE_OFFSET(0),
 		VD55FLOOD_GLOBAL_PHASE_OFFSET_15_DEG}
@@ -256,10 +311,6 @@ static const struct vd55flood_reg mode_2freq_regs[] = {
 		VD55FLOOD_LVDS_DUTY_CYCLE_FALL_SHIFT},
 	{VD55FLOOD_REG_CONTEXT_REPEAT_COUNT(0), 1},
 	{VD55FLOOD_REG_NEXT_CONTEXT(0), 1},
-	{VD55FLOOD_REG_FRAME_LENGTH(0), 1482},
-	{VD55FLOOD_REG_EXPOSURE_TIME_LONG(0),
-		32 << VD55FLOOD_EXPOSURE_TIME_LONG_COARSE_SHIFT |
-		0 << VD55FLOOD_EXPOSURE_TIME_LONG_FINE_SHIFT},
 	{VD55FLOOD_REG_ITOF_CLK_TARGET(0), 80000000},
 	{VD55FLOOD_REG_GLOBAL_PHASE_OFFSET(0),
 		VD55FLOOD_GLOBAL_PHASE_OFFSET_15_DEG},
@@ -271,21 +322,11 @@ static const struct vd55flood_reg mode_2freq_regs[] = {
 		VD55FLOOD_LVDS_DUTY_CYCLE_FALL_SHIFT},
 	{VD55FLOOD_REG_CONTEXT_REPEAT_COUNT(1), 1},
 	{VD55FLOOD_REG_NEXT_CONTEXT(1), 0},
-	{VD55FLOOD_REG_FRAME_LENGTH(1), 3252},
-	{VD55FLOOD_REG_EXPOSURE_TIME_LONG(1),
-		32 << VD55FLOOD_EXPOSURE_TIME_LONG_COARSE_SHIFT |
-		0 << VD55FLOOD_EXPOSURE_TIME_LONG_FINE_SHIFT},
 	{VD55FLOOD_REG_ITOF_CLK_TARGET(1), 60000000},
 	{VD55FLOOD_REG_GLOBAL_PHASE_OFFSET(1),
 		VD55FLOOD_GLOBAL_PHASE_OFFSET_15_DEG},
 };
 
-/*
- * This is a degraded 3F mode and differs from the recommended one since
- * hardware stack only supports 2 lanes and therefore can't output at the same
- * bandwidth. Recommended mode frame lengths are 1482 14782 1770.
- * FIXME: Change to recommended 3F mode once we have hardware to test it.
- */
 static const struct vd55flood_reg mode_3freq_regs[] = {
 	{VD55FLOOD_REG_FORMAT_CTRL,
 		VD55FLOOD_FORMAT_CTRL_TAP_MERGED |
@@ -300,10 +341,6 @@ static const struct vd55flood_reg mode_3freq_regs[] = {
 		VD55FLOOD_LVDS_DUTY_CYCLE_FALL_SHIFT},
 	{VD55FLOOD_REG_CONTEXT_REPEAT_COUNT(0), 1},
 	{VD55FLOOD_REG_NEXT_CONTEXT(0), 1},
-	{VD55FLOOD_REG_FRAME_LENGTH(0), 1482},
-	{VD55FLOOD_REG_EXPOSURE_TIME_LONG(0),
-		32 << VD55FLOOD_EXPOSURE_TIME_LONG_COARSE_SHIFT |
-		0 << VD55FLOOD_EXPOSURE_TIME_LONG_FINE_SHIFT},
 	{VD55FLOOD_REG_ITOF_CLK_TARGET(0), 200000000},
 	{VD55FLOOD_REG_GLOBAL_PHASE_OFFSET(0),
 		VD55FLOOD_GLOBAL_PHASE_OFFSET_15_DEG},
@@ -315,10 +352,6 @@ static const struct vd55flood_reg mode_3freq_regs[] = {
 		VD55FLOOD_LVDS_DUTY_CYCLE_FALL_SHIFT},
 	{VD55FLOOD_REG_CONTEXT_REPEAT_COUNT(1), 1},
 	{VD55FLOOD_REG_NEXT_CONTEXT(1), 2},
-	{VD55FLOOD_REG_FRAME_LENGTH(1), 1482},
-	{VD55FLOOD_REG_EXPOSURE_TIME_LONG(1),
-		32 << VD55FLOOD_EXPOSURE_TIME_LONG_COARSE_SHIFT |
-		0 << VD55FLOOD_EXPOSURE_TIME_LONG_FINE_SHIFT},
 	{VD55FLOOD_REG_ITOF_CLK_TARGET(1), 177777780},
 	{VD55FLOOD_REG_GLOBAL_PHASE_OFFSET(1),
 		VD55FLOOD_GLOBAL_PHASE_OFFSET_15_DEG},
@@ -330,16 +363,31 @@ static const struct vd55flood_reg mode_3freq_regs[] = {
 		VD55FLOOD_LVDS_DUTY_CYCLE_FALL_SHIFT},
 	{VD55FLOOD_REG_CONTEXT_REPEAT_COUNT(2), 1},
 	{VD55FLOOD_REG_NEXT_CONTEXT(2), 0},
-	{VD55FLOOD_REG_FRAME_LENGTH(2), 2262},
-	{VD55FLOOD_REG_EXPOSURE_TIME_LONG(2),
-		32 << VD55FLOOD_EXPOSURE_TIME_LONG_COARSE_SHIFT |
-		0 << VD55FLOOD_EXPOSURE_TIME_LONG_FINE_SHIFT},
 	{VD55FLOOD_REG_ITOF_CLK_TARGET(2), 133333330},
 	{VD55FLOOD_REG_GLOBAL_PHASE_OFFSET(2),
 		VD55FLOOD_GLOBAL_PHASE_OFFSET_15_DEG},
 };
 
+static const struct vd55flood_exposure_range vd55flood_normal_exposure = {
+	.min = 1,
+	.max = VD55FLOOD_EXPOSURE_TIME_MAXIMUM_NORMAL,
+	.def = VD55FLOOD_EXPOSURE_TIME_LONG_NORMAL,
+};
+
+static const struct vd55flood_exposure_range vd55flood_digital_x2_exposure = {
+	.min = 1,
+	.max = VD55FLOOD_EXPOSURE_TIME_MAXIMUM_BINNED,
+	.def = VD55FLOOD_EXPOSURE_TIME_LONG_BINNED,
+};
+
 static const struct vd55flood_mode_info vd55flood_mode_data[] = {
+	/*
+	 * Minimum framelengths differ from 4 lanes setup, and are found by
+	 * reading VD55FLOOD_REG_MIN_FRAME_LENGTH at streaming time, they are
+	 * only applicable for 2 lanes setup. Use these for now as we don't have
+	 * any setup supporting anything else than 2 lanes and I have yet to
+	 * find a formulae to dynamically find them.
+	 */
 	/* Full resolution modes */
 	{
 		.width = VD55FLOOD_WIDTH,
@@ -350,6 +398,8 @@ static const struct vd55flood_mode_info vd55flood_mode_data[] = {
 			.num_of_regs = ARRAY_SIZE(mode_1freq_regs),
 			.regs = mode_1freq_regs,
 		},
+		.superframe_length = 4734,
+		.exposure = &vd55flood_normal_exposure,
 	},
 	{
 		.width = VD55FLOOD_WIDTH,
@@ -360,6 +410,8 @@ static const struct vd55flood_mode_info vd55flood_mode_data[] = {
 			.num_of_regs = ARRAY_SIZE(mode_2freq_regs),
 			.regs = mode_2freq_regs,
 		},
+		.superframe_length = 4734,
+		.exposure = &vd55flood_normal_exposure,
 	},
 	{
 		.width = VD55FLOOD_WIDTH,
@@ -370,6 +422,8 @@ static const struct vd55flood_mode_info vd55flood_mode_data[] = {
 			.num_of_regs = ARRAY_SIZE(mode_3freq_regs),
 			.regs = mode_3freq_regs,
 		},
+		.superframe_length = 7102,
+		.exposure = &vd55flood_normal_exposure,
 	},
 	/* Binned modes */
 	{
@@ -381,6 +435,8 @@ static const struct vd55flood_mode_info vd55flood_mode_data[] = {
 			.num_of_regs = ARRAY_SIZE(mode_2freq_regs),
 			.regs = mode_2freq_regs,
 		},
+		.superframe_length = 4734,
+		.exposure = &vd55flood_digital_x2_exposure,
 	},
 	{
 		.width = VD55FLOOD_WIDTH / 2,
@@ -391,6 +447,8 @@ static const struct vd55flood_mode_info vd55flood_mode_data[] = {
 			.num_of_regs = ARRAY_SIZE(mode_3freq_regs),
 			.regs = mode_3freq_regs,
 		},
+		.superframe_length = 4734,
+		.exposure = &vd55flood_digital_x2_exposure,
 	},
 };
 
@@ -499,8 +557,12 @@ static int vd55flood_write_multiple(struct vd55flood_dev *sensor, u32 reg,
 	if (err && *err)
 		return *err;
 
-	if (len > VD55FLOOD_WRITE_MULTIPLE_CHUNK_MAX)
+	if (len > VD55FLOOD_WRITE_MULTIPLE_CHUNK_MAX || len <= 0) {
+		if (err)
+			*err = -EINVAL;
 		return -EINVAL;
+	}
+
 	buf[0] = reg >> 8;
 	buf[1] = reg & 0xff;
 	for (i = 0; i < len; i++)
@@ -532,6 +594,8 @@ static int vd55flood_write_array(struct vd55flood_dev *sensor, u32 reg,
 
 	if (err && *err)
 		return *err;
+
+	reg = reg & 0xffff;
 
 	while (nb) {
 		sz = min(nb, chunk_size);
@@ -586,7 +650,7 @@ static int vd55flood_poll_reg(struct vd55flood_dev *sensor, u32 reg,
 	const unsigned int loop_delay_ms = 10;
 	int ret = 0;
 	u32 val = 0;
-#if KERNEL_VERSION(5, 7, 0) >= LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0)
 	int loop_nb = timeout_ms / loop_delay_ms;
 
 	while (--loop_nb) {
@@ -613,6 +677,28 @@ static int vd55flood_wait_state(struct vd55flood_dev *sensor, int state,
 			       timeout_ms);
 }
 
+static int vd55flood_apply_patgen(struct vd55flood_dev *sensor)
+{
+	static const u16 index2val[] = {0x00, 0x08, 0x09};
+	const u16 pattern = index2val[sensor->pattern];
+	const u16 enable_patgen = sensor->pattern > 0;
+	const u16 patgen_ctrl_value =
+		VD55FLOOD_PATGEN_CTRL_REG_VALUE(pattern, enable_patgen);
+	int ret = 0;
+
+	u16 darkcal = VD55FLOOD_DARKCAL_CTRL_DEFAULT_VALUE;
+
+	if (sensor->pattern)
+		darkcal &= VD55FLOOD_DARKCAL_CTRL_MODE_CLEAR;
+
+	ret = vd55flood_write_reg(sensor, VD55FLOOD_REG_DARKCAL_CTRL,
+			darkcal, NULL);
+	vd55flood_write_reg(sensor, VD55FLOOD_PATGEN_CTRL,
+			patgen_ctrl_value, &ret);
+
+	return ret;
+}
+
 static int vd55flood_apply_reset(struct vd55flood_dev *sensor)
 {
 	gpiod_set_value_cansleep(sensor->reset_gpio, 1);
@@ -623,6 +709,130 @@ static int vd55flood_apply_reset(struct vd55flood_dev *sensor)
 	usleep_range(40000, 100000);
 	return vd55flood_wait_state(sensor, VD55FLOOD_SYSTEM_FSM_UP,
 				 VD55FLOOD_TIMEOUT_MS);
+}
+
+static int vd55flood_update_ee_cache(struct vd55flood_dev *sensor)
+{
+	struct i2c_client *client = sensor->i2c_client;
+	int ret = -EINVAL;
+
+	ret = nvmem_device_read(sensor->ld.nvmem_dev, VD55FLOOD_NVMEM_REG_BASE,
+				ARRAY_SIZE(sensor->ld.nvmem_data),
+				sensor->ld.nvmem_data);
+	if (ret < 0) {
+		dev_err(&client->dev, "error reading laser driver nvmem data %d\n",
+			ret);
+		return ret;
+	}
+	if (ret != ARRAY_SIZE(sensor->ld.nvmem_data)) {
+		dev_err(&client->dev, "can't read nvmem data\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * vd55flood_apply_exposure - updates the exposure value.
+ *
+ * During streaming, this function updates the exposure setting and updates
+ * the RESAMPLING_READY flag to guarantee that the next exposure value is
+ * applied on a full frame.
+ *
+ * @sensor vd55flood internal structure.
+ *
+ * Returns 0 on success, or a negative on error.
+ */
+static int vd55flood_apply_exposure(struct vd55flood_dev *sensor)
+{
+	struct i2c_client *client = sensor->i2c_client;
+	const u8 expo = sensor->expo_ctrl->val;
+	int i, ret = 0;
+
+	const u32 value = FIELD_PREP(VD55FLOOD_EXPOSURE_TIME_LONG_COARSE_MASK,
+				     expo);
+
+	for (i = 0; i < sensor->current_mode->freq_nb; i++) {
+		vd55flood_write_reg(sensor,
+				    VD55FLOOD_REG_EXPOSURE_TIME_LONG(i),
+				    value, &ret);
+	}
+
+	if (sensor->streaming) {
+		vd55flood_write_reg(sensor, VD55FLOOD_REG_RESAMPLING_READY,
+				    VD55FLOOD_RESAMPLING_READY_VALUE, &ret);
+
+		if (ret) {
+			dev_warn(&client->dev,
+				"Failed to ask sensor to resample parameters");
+		} else {
+			ret = vd55flood_poll_reg(sensor,
+						 VD55FLOOD_REG_RESAMPLING_READY,
+						 0, 100);
+
+			if (ret)
+				dev_warn(&client->dev, "Resample timeout");
+		}
+	}
+
+	return ret;
+}
+
+static int vd55flood_apply_framelength(struct vd55flood_dev *sensor)
+{
+	return vd55flood_write_reg(sensor, VD55FLOOD_REG_SUPERFRAME_LENGTH,
+				   sensor->current_mode->superframe_length,
+				   NULL);
+}
+
+/*
+ * vd55flood_update_exposure_range() - updates min & max values of exposure.
+ *
+ * @sensor vd55flood structure.
+ *
+ * Returns the V4L2 error code in case of error.
+ */
+static int vd55flood_update_exposure_range(struct vd55flood_dev *sensor)
+{
+	int ret = 0;
+	const struct vd55flood_mode_info *current_mode = sensor->current_mode;
+
+	if (sensor->expo_ctrl->val > current_mode->exposure->max)
+		ret = __v4l2_ctrl_s_ctrl(sensor->expo_ctrl,
+			current_mode->exposure->def);
+
+	if (!ret)
+		ret = __v4l2_ctrl_modify_range(sensor->expo_ctrl,
+					       current_mode->exposure->min,
+					       current_mode->exposure->max,
+					       1,
+					       current_mode->exposure->def);
+
+	if (!ret && sensor->expo_ctrl->val != current_mode->exposure->def)
+		ret = __v4l2_ctrl_s_ctrl(sensor->expo_ctrl,
+					 current_mode->exposure->def);
+
+	return ret;
+}
+
+/**
+ * Updates the exposure control and value.
+ *
+ * By default this function will set the exposure value to the
+ * configured mode's default value if not in a safe range.
+ *
+ * @sensor vd55flood driver structure.
+ *
+ * Returns int error from v4l2 if any.
+ */
+static int vd55flood_update_exposure(struct vd55flood_dev *sensor)
+{
+	int ret = 0;
+
+	if (sensor->streaming)
+		ret = vd55flood_apply_exposure(sensor);
+
+	return ret;
 }
 
 static void vd55flood_fill_framefmt(struct vd55flood_dev *sensor,
@@ -672,11 +882,40 @@ static int vd55flood_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
 	struct vd55flood_dev *sensor = to_vd55flood_dev(sd);
-	int ret;
+	int ret = -EINVAL;
 
 	switch (ctrl->id) {
 	case V4L2_CID_PIXEL_RATE:
 		ret = __v4l2_ctrl_s_ctrl_int64(ctrl, get_pixel_rate(sensor));
+		break;
+	case V4L2_CID_EE_DATA:
+		ret = vd55flood_update_ee_cache(sensor);
+		if (!ret)
+			memcpy(ctrl->p_new.p_u8, sensor->ld.nvmem_data,
+			       ARRAY_SIZE(sensor->ld.nvmem_data));
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int vd55flood_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
+	struct vd55flood_dev *sensor = to_vd55flood_dev(sd);
+	int ret = 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_FREQ_NB:
+		/* Read only, just return ok */
+		break;
+	case V4L2_CID_TEST_PATTERN:
+		sensor->pattern = ctrl->val;
+		break;
+	case V4L2_CID_EXPOSURE:
+		ret = vd55flood_update_exposure(sensor);
 		break;
 	default:
 		ret = -EINVAL;
@@ -686,25 +925,32 @@ static int vd55flood_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static int vd55flood_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	return 0;
-}
-
 static const struct v4l2_ctrl_ops vd55flood_ctrl_ops = {
 	.g_volatile_ctrl = vd55flood_g_volatile_ctrl,
 	.s_ctrl = vd55flood_s_ctrl,
 };
 
 static const struct v4l2_ctrl_config vd55flood_freq_nb_ctrl = {
-	.ops		= &vd55flood_ctrl_ops,
-	.id		= V4L2_CID_FREQ_NB,
-	.name		= "Number of frequencies",
-	.type		= V4L2_CTRL_TYPE_INTEGER,
-	.min		= 1,
-	.max		= 3,
-	.step		= 1,
-	.def		= 1,
+	.ops  = &vd55flood_ctrl_ops,
+	.id   = V4L2_CID_FREQ_NB,
+	.name = "Number of frequencies",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min  = 1,
+	.max  = 3,
+	.step = 1,
+	.def  = 1,
+};
+
+static const struct v4l2_ctrl_config vd55flood_ee_ctrl = {
+	.ops  = &vd55flood_ctrl_ops,
+	.id   = V4L2_CID_EE_DATA,
+	.name = "EEPROM data",
+	.type = V4L2_CTRL_TYPE_U8,
+	.step = 1,
+	.min  = 0,
+	.max  = 0xFF,
+	.def  = 0,
+	.dims = {VD55FLOOD_LD_NVMEM_DATA_SIZE},
 };
 
 static int vd55flood_init_controls(struct vd55flood_dev *sensor)
@@ -712,6 +958,9 @@ static int vd55flood_init_controls(struct vd55flood_dev *sensor)
 	const struct v4l2_ctrl_ops *ops = &vd55flood_ctrl_ops;
 	struct v4l2_ctrl_handler *hdl = &sensor->ctrl_handler;
 	struct v4l2_ctrl *ctrl;
+
+	const unsigned int patgen_size =
+		ARRAY_SIZE(vd55flood_test_pattern_menu) - 1;
 	int ret;
 
 	v4l2_ctrl_handler_init(hdl, 16);
@@ -731,11 +980,28 @@ static int vd55flood_init_controls(struct vd55flood_dev *sensor)
 						    get_pixel_rate(sensor));
 	if (sensor->pixel_rate_ctrl)
 		sensor->pixel_rate_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
 	sensor->freq_nb_ctrl = v4l2_ctrl_new_custom(hdl,
 						    &vd55flood_freq_nb_ctrl,
 						    NULL);
 	if (sensor->freq_nb_ctrl)
 		sensor->freq_nb_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	sensor->ee_ctrl = v4l2_ctrl_new_custom(hdl, &vd55flood_ee_ctrl, NULL);
+	if (sensor->ee_ctrl)
+		sensor->ee_ctrl->flags |= (V4L2_CTRL_FLAG_READ_ONLY |
+					   V4L2_CTRL_FLAG_VOLATILE);
+
+	sensor->pattern_ctrl =
+		v4l2_ctrl_new_std_menu_items(hdl, ops, V4L2_CID_TEST_PATTERN,
+					     patgen_size, 0, 0,
+					     vd55flood_test_pattern_menu);
+
+	sensor->expo_ctrl = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE,
+			sensor->current_mode->exposure->min,
+			sensor->current_mode->exposure->max,
+			1,
+			sensor->current_mode->exposure->def);
 
 	if (hdl->error) {
 		ret = hdl->error;
@@ -817,6 +1083,16 @@ static int vd55flood_apply_settings(struct vd55flood_dev *sensor)
 			    &ret);
 	vd55flood_write_reg(sensor, VD55FLOOD_REG_GPIO_CONFIG,
 			    VD55FLOOD_GPIO_CONFIG_UPDATE, &ret);
+	/* Resampling is required to enable superframe_length setting */
+	vd55flood_write_reg(sensor, VD55FLOOD_REG_RESAMPLING_ENABLE, 1, &ret);
+	if (ret)
+		return ret;
+
+	ret = vd55flood_apply_framelength(sensor);
+	if (ret)
+		return ret;
+
+	ret = vd55flood_apply_exposure(sensor);
 	if (ret)
 		return ret;
 
@@ -825,13 +1101,14 @@ static int vd55flood_apply_settings(struct vd55flood_dev *sensor)
 	if (ret)
 		return ret;
 
-	return 0;
+	return vd55flood_apply_patgen(sensor);
 }
 
 static int vd55flood_stream_enable(struct vd55flood_dev *sensor)
 {
 	struct i2c_client *client = sensor->i2c_client;
 	int ret;
+	u32 min_fl;
 
 	ret = vd55flood_apply_settings(sensor);
 	if (ret) {
@@ -859,6 +1136,14 @@ static int vd55flood_stream_enable(struct vd55flood_dev *sensor)
 		dev_err(&client->dev, "Error while waiting FSM\n");
 		return -EINVAL;
 	}
+
+	ret = vd55flood_read_reg(sensor->i2c_client,
+				 VD55FLOOD_REG_MIN_FRAME_LENGTH, &min_fl);
+	if (ret)
+		return -EINVAL;
+	if (sensor->current_mode->superframe_length > min_fl)
+		dev_err(&client->dev, "minimum framelength %d too low (min %d)\n",
+			sensor->current_mode->superframe_length, min_fl);
 
 	return 0;
 }
@@ -981,7 +1266,7 @@ static int vd55flood_tx_from_ep(struct vd55flood_dev *sensor,
 	int l_nb;
 	unsigned int p, l, i;
 
-#if KERNEL_VERSION(4, 20, 0) > LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0)
 	ep = v4l2_fwnode_endpoint_alloc_parse(handle);
 #else
 	struct v4l2_fwnode_endpoint ep_node = { .bus_type =
@@ -1067,8 +1352,8 @@ static int vd55flood_check_sensor_rev(struct vd55flood_dev *sensor)
 
 	switch (rom_rev) {
 	case VD55FLOOD_ROM_REV_B0:
-		dev_dbg(&client->dev, "Sensor revision B0\n");
-		break;
+		dev_err(&client->dev, "Sensor revision B0 not supported\n");
+		return -EINVAL;
 	case VD55FLOOD_ROM_REV_D0:
 		dev_dbg(&client->dev, "Sensor revision D0\n");
 		break;
@@ -1115,22 +1400,14 @@ static int vd55flood_setup(struct vd55flood_dev *sensor)
 				   VD55FLOOD_TIMEOUT_MS);
 }
 
-static int vd55flood_patch(struct vd55flood_dev *sensor)
+static int vd55flood_patch(struct vd55flood_dev *sensor, u8 *patch_array,
+			   uint length)
 {
 	int ret;
 
-	if (sensor->rev == VD55FLOOD_ROM_REV_B0)
-		ret = vd55flood_write_array(sensor,
-					    VD55FLOOD_REG_FWPATCH_START_ADDR,
-					    sizeof(patch_array_b0),
-					    patch_array_b0,
-					    NULL);
-	else
-		ret = vd55flood_write_array(sensor,
-					    VD55FLOOD_REG_FWPATCH_START_ADDR,
-					    sizeof(patch_array_d0),
-					    patch_array_d0,
-					    NULL);
+	ret = vd55flood_write_array(sensor,
+				    VD55FLOOD_REG_FWPATCH_START_ADDR,
+				    length, patch_array, NULL);
 	if (ret)
 		return ret;
 
@@ -1190,7 +1467,7 @@ static int vd55flood_check_patch_version(struct vd55flood_dev *sensor,
 }
 
 static int vd55flood_get_fmt(struct v4l2_subdev *sd,
-#if KERNEL_VERSION(5, 14, 0) > LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
 			  struct v4l2_subdev_pad_config *cfg,
 #else
 			  struct v4l2_subdev_state *sd_state,
@@ -1203,7 +1480,7 @@ static int vd55flood_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sensor->lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-#if KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
 		fmt = v4l2_subdev_get_try_format(&sensor->sd, cfg,
 						 format->pad);
 #else
@@ -1220,8 +1497,20 @@ static int vd55flood_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+/*
+ * HACK: On platforms with Rockchip CIF enabled, the CIF driver calls its sensor
+ * get_selection ops, then checks if its input bounds matches the sensor's.
+ * According to the documentation V4L2_SEL_TGT_CROP_BOUNDS is supposed to return
+ * the maximum frame size available, while V4L2_SEL_TGT_CROP the current one.
+ * Unfortunately the CIF driver calls get_selection with the
+ * V4L2_SEL_TGT_CROP_BOUNDS target instead of V4L2_SEL_TGT_CROP.
+ * We circumvent this bug by removing the get_selection function if the Rockchip
+ * CIF driver is enabled. This will result in the driver picking default values,
+ * matching its input bounds, and streaming without issue.
+ */
+#ifndef CONFIG_VIDEO_ROCKCHIP_CIF
 static int vd55flood_get_selection(struct v4l2_subdev *sd,
-#if KERNEL_VERSION(5, 15, 0) >= LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
 				struct v4l2_subdev_pad_config *cfg,
 #else
 				struct v4l2_subdev_state *sd_state,
@@ -1249,9 +1538,10 @@ static int vd55flood_get_selection(struct v4l2_subdev *sd,
 
 	return -EINVAL;
 }
+#endif
 
 static int vd55flood_enum_mbus_code(struct v4l2_subdev *sd,
-#if KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
 				 struct v4l2_subdev_pad_config *cfg,
 #else
 				 struct v4l2_subdev_state *sd_state,
@@ -1267,7 +1557,7 @@ static int vd55flood_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int vd55flood_set_fmt(struct v4l2_subdev *sd,
-#if KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
 			  struct v4l2_subdev_pad_config *cfg,
 #else
 			  struct v4l2_subdev_state *sd_state,
@@ -1291,7 +1581,7 @@ static int vd55flood_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-#if KERNEL_VERSION(5, 15, 0) >= LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
 		fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
 #else
 		fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
@@ -1306,6 +1596,8 @@ static int vd55flood_set_fmt(struct v4l2_subdev *sd,
 
 		__v4l2_ctrl_s_ctrl(sensor->freq_nb_ctrl,
 				   sensor->current_mode->freq_nb);
+
+		ret = vd55flood_update_exposure_range(sensor);
 	}
 
 out:
@@ -1315,7 +1607,7 @@ out:
 }
 
 static int vd55flood_enum_frame_size(struct v4l2_subdev *sd,
-#if KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)
 				  struct v4l2_subdev_pad_config *cfg,
 #else
 				  struct v4l2_subdev_state *sd_state,
@@ -1336,15 +1628,40 @@ static int vd55flood_enum_frame_size(struct v4l2_subdev *sd,
 static const struct v4l2_subdev_core_ops vd55flood_core_ops = {
 };
 
+/*
+ * This ops only exists in Rockchip V4L2 implementation, and is required for
+ * the Rockchip CIF driver to stream with the sensor.
+ */
+#ifdef CONFIG_VIDEO_ROCKCHIP_CIF
+static int vd55flood_g_mbus_config(struct v4l2_subdev *sd,
+		struct v4l2_mbus_config *config)
+{
+	u32 val = 0;
+
+	val = V4L2_MBUS_CSI2_2_LANE |
+		V4L2_MBUS_CSI2_CHANNEL_0 |
+		V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+#endif
+
 static const struct v4l2_subdev_video_ops vd55flood_video_ops = {
 	.s_stream = vd55flood_s_stream,
+#ifdef CONFIG_VIDEO_ROCKCHIP_CIF
+	.g_mbus_config = vd55flood_g_mbus_config,
+#endif
 };
 
 static const struct v4l2_subdev_pad_ops vd55flood_pad_ops = {
 	.enum_mbus_code = vd55flood_enum_mbus_code,
 	.get_fmt = vd55flood_get_fmt,
 	.set_fmt = vd55flood_set_fmt,
+#ifndef CONFIG_VIDEO_ROCKCHIP_CIF
 	.get_selection = vd55flood_get_selection,
+#endif
 	.enum_frame_size = vd55flood_enum_frame_size,
 };
 
@@ -1363,10 +1680,10 @@ static int vd55flood_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct fwnode_handle *handle;
 	struct vd55flood_dev *sensor;
-	struct nvmem_device *nvmem_dev;
 	/* Double data rate */
 	u32 mipi_bps = link_freq[0] * 2;
-	int patch_major, patch_minor;
+	int patch_major = VD55FLOOD_FWPATCH_REVISION_MAJOR_D0;
+	int patch_minor = VD55FLOOD_FWPATCH_REVISION_MINOR_D0;
 	int ret;
 	u16 val;
 
@@ -1417,9 +1734,10 @@ static int vd55flood_probe(struct i2c_client *client)
 	/* Frequency to data rate is 1:1 ratio for MIPI */
 	sensor->data_rate_in_mbps = mipi_bps;
 
-	nvmem_dev = devm_nvmem_device_get(&client->dev, "vd55flood-nvmem");
-	if (IS_ERR(nvmem_dev))
-		return PTR_ERR(nvmem_dev);
+	sensor->ld.nvmem_dev = devm_nvmem_device_get(&client->dev,
+						     VD55FLOOD_NVMEM_NAME);
+	if (IS_ERR(sensor->ld.nvmem_dev))
+		return PTR_ERR(sensor->ld.nvmem_dev);
 
 	ret = clk_prepare_enable(sensor->xclk);
 	if (ret) {
@@ -1442,8 +1760,8 @@ static int vd55flood_probe(struct i2c_client *client)
 	}
 
 	/* Sanity check for nvmem id */
-	ret = nvmem_device_read(nvmem_dev, VD55FLOOD_NVMEM_REG_ID, sizeof(val),
-				&val);
+	ret = nvmem_device_read(sensor->ld.nvmem_dev, VD55FLOOD_NVMEM_REG_ID,
+				sizeof(val), &val);
 	if (ret != sizeof(val)) {
 		dev_err(&client->dev, "can't read nvmem identifier\n");
 		goto disable_clock;
@@ -1456,16 +1774,10 @@ static int vd55flood_probe(struct i2c_client *client)
 		goto disable_clock;
 	}
 
-	ret = nvmem_device_read(nvmem_dev, VD55FLOOD_NVMEM_REG_BASE,
-				ARRAY_SIZE(sensor->ld.nvmem_data),
-				sensor->ld.nvmem_data);
+	ret = vd55flood_update_ee_cache(sensor);
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"error reading laser driver nvmem data %d\n", ret);
-		goto disable_clock;
-	}
-	if (ret != ARRAY_SIZE(sensor->ld.nvmem_data)) {
-		dev_err(&client->dev, "can't read nvmem data\n");
 		goto disable_clock;
 	}
 
@@ -1481,7 +1793,7 @@ static int vd55flood_probe(struct i2c_client *client)
 		goto disable_clock;
 	}
 
-	ret = vd55flood_patch(sensor);
+	ret = vd55flood_patch(sensor, (u8 *)patch_array, sizeof(patch_array));
 	if (ret) {
 		dev_err(&client->dev, "sensor patch failed %d", ret);
 		goto disable_clock;
@@ -1493,13 +1805,6 @@ static int vd55flood_probe(struct i2c_client *client)
 		goto disable_clock;
 	}
 
-	if (sensor->rev == VD55FLOOD_ROM_REV_B0) {
-		patch_major = VD55FLOOD_FWPATCH_REVISION_MAJOR_B0;
-		patch_minor = VD55FLOOD_FWPATCH_REVISION_MINOR_B0;
-	} else {
-		patch_major = VD55FLOOD_D0_FWPATCH_REVISION_MAJOR_D0;
-		patch_minor = VD55FLOOD_D0_FWPATCH_REVISION_MINOR_D0;
-	}
 	ret = vd55flood_check_patch_version(sensor, patch_major, patch_minor);
 	if (ret)
 		goto disable_clock;
@@ -1540,7 +1845,7 @@ disable_clock:
 	return ret;
 }
 
-#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
 static int vd55flood_remove(struct i2c_client *client)
 #else
 static void vd55flood_remove(struct i2c_client *client)
@@ -1555,7 +1860,7 @@ static void vd55flood_remove(struct i2c_client *client)
 
 	clk_disable_unprepare(sensor->xclk);
 
-#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
 	return 0;
 #endif
 }
@@ -1571,7 +1876,7 @@ static struct i2c_driver vd55flood_i2c_driver = {
 		.name  = "st-vd55flood",
 		.of_match_table = vd55flood_dt_ids,
 	},
-#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
 	.probe_new = vd55flood_probe,
 #else
 	.probe = vd55flood_probe,

@@ -1257,7 +1257,7 @@
 		phy-names = "uphy";
 	};
 
-	extcon_dwc3drd: extcon_usb3 {
+	extcon_dwc3drd: extcon_usb3@f8004a80 {
 		compatible = "linux,extcon-usb-gpio";
 		reg = <0x0 0xf8004a80 0x0 0x80>;
 		clocks = <&clkc UPHY0>;
@@ -1280,8 +1280,8 @@
 			snps,dis_u2_susphy_quirk;
 			phy_type = "utmi_wide";
 			extcon = <&extcon_dwc3drd>;
-			phys = <&u3phy0>, <&u3phy0>;
-			phy-names = "usb3-phy", "usb2-phy";
+			phys = <&u3phy0>, <&sp_uphy0>;
+			phy-names = "usb3-phy", "usb3-phy";
 		};
 	};
 
