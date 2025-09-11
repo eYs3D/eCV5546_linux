@@ -36,7 +36,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "eYs3D eCV5546 YX5001";
+	model = "eYs3D eCV5546 YX4512";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon loglevel=8 no_console_suspend ";
@@ -995,6 +995,11 @@
 		};
 #endif
 	};
+
+	rtc1: rtc-PCF85363@51 {
+		compatible = "nxp,pcf85363";
+		reg = <0x51>;
+	};
 };
 
 &i2c5 {
@@ -1012,10 +1017,6 @@
 #else
 	status = "disabled";
 #endif
-	rtc1: rtc-PCF85363@51 {
-		compatible = "nxp,pcf85363";
-		reg = <0x51>;
-	};
 };
 
 &i2c6 {

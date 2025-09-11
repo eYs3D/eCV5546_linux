@@ -26,6 +26,8 @@
 //#define TP2815_IN5_2VC
 //#define TP2815_IN5_4VC
 //#define VD55FLOOD_IN2
+// #define DRAM_SIZE_4GB
+#define DRAM_SIZE_8GB
 
 #define AP6256_WIFI
 #define AP6256_BT
@@ -36,7 +38,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "eYs3D eCV5546 YX5001";
+	model = "eYs3D eCV5546 YX4512 8G";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon loglevel=8 no_console_suspend ";
@@ -49,11 +51,18 @@
 		numa-node-id = <0>;
 	};
 
+#if defined(DRAM_SIZE_4GB) || defined(DRAM_SIZE_8GB)
 	memory@100000000 {
 		device_type = "memory";
+#if defined(DRAM_SIZE_4GB)
 		reg = <0x1 0x0        0x0 0x10000000>;
+#else
+		reg = <0x1 0x0        0x1 0x00000000>,
+		      <0x3 0x0        0x0 0x10000000>;
+#endif
 		numa-node-id = <1>;
 	};
+#endif
 
 	distance-map {
 		compatible = "numa-distance-map-v1";
@@ -995,6 +1004,11 @@
 		};
 #endif
 	};
+
+	rtc1: rtc-PCF85363@51 {
+		compatible = "nxp,pcf85363";
+		reg = <0x51>;
+	};
 };
 
 &i2c5 {
@@ -1012,10 +1026,6 @@
 #else
 	status = "disabled";
 #endif
-	rtc1: rtc-PCF85363@51 {
-		compatible = "nxp,pcf85363";
-		reg = <0x51>;
-	};
 };
 
 &i2c6 {
@@ -2497,4 +2507,3 @@
 		pins = "GPIO73";
 	};
 };
-

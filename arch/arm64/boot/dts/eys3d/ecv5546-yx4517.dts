@@ -8,7 +8,7 @@
 
 //#define MIPI_CSI_4VC
 #define IMX219_IN2
-#define IMX219_IN5
+// #define IMX219_IN5
 //#define IMX708_IN2
 //#define IMX708_IN5
 //#define OV5640_IN2
@@ -36,7 +36,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "eYs3D eCV5546 YX5001";
+	model = "eYs3D eCV5546 yx4517";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon loglevel=8 no_console_suspend ";
@@ -465,12 +465,12 @@
 			linux,default-trigger = "heartbeat";
 		};
 
-		red-led {
-			label = "red-led";
-			gpios = <&pctl 23 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-			linux,default-trigger = "none";
-		};
+		// red-led {
+		// 	label = "red-led";
+		// 	gpios = <&pctl 23 GPIO_ACTIVE_HIGH>;
+		// 	default-state = "off";
+		// 	linux,default-trigger = "none";
+		// };
 
 		green-led {
 			label = "green-led";
@@ -555,7 +555,7 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins &uart2_fc_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &uart3 {
@@ -697,25 +697,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_master4_pins &spi_cs_pins>;
 	cs-gpios = <&pctl 73 GPIO_ACTIVE_LOW>;
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		spi-max-frequency = <5000000>;
+		reg = <0x0>;
+		status = "okay";
+	};
 	//dmas = <&ahbdma1 6 0 0>,
 	//       <&ahbdma1 7 0 0>;
 	//dma-names = "rx", "tx";
-	lsm6dso@0 {
-		compatible = "st,lsm6dso";
-		reg = <0x0>;
-		vdd-supply = <&lsm6dso_vdd_3v3>;   // define vdd power
-        vddio-supply = <&lsm6dso_vddio_1v8>; // define vddio power
-		spi-max-frequency = <1000000>;
-		// spi-cpol;
-		// spi-cpha;
-		accel-pm = <1>; // accelerometer power mode
-	/*	0: High Power Mode (LSM6DSO_DT_XL_HP_MODE)
-		1: Normal Low Power Mode (LSM6DSO_DT_XL_LP_NORMAL_MODE)
-		2: Ultra Low Power Mode (LSM6DSO_DT_XL_ULP_MODE) */
-		gyro-pm = <1>; // gyrometer power mode
-	/*	0 corresponds to LSM6DSO_DT_GY_HP_MODE, which likely represents a high-performance mode.
-		1 corresponds to LSM6DSO_DT_GY_NORMAL_MODE, which likely represents a normal operational mode. */
-	};
 };
 
 &spi_controller5 {
@@ -995,6 +985,11 @@
 		};
 #endif
 	};
+	
+	rtc1: rtc-PCF85363@51 {
+		compatible = "nxp,pcf85363";
+		reg = <0x51>;
+	};
 };
 
 &i2c5 {
@@ -1012,10 +1007,6 @@
 #else
 	status = "disabled";
 #endif
-	rtc1: rtc-PCF85363@51 {
-		compatible = "nxp,pcf85363";
-		reg = <0x51>;
-	};
 };
 
 &i2c6 {
