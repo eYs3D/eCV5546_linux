@@ -463,7 +463,8 @@ static void otg_hw_init(struct sp_otg *otg_host)
 	writel(0x20040, &otg_host->regs_otg->a_wait_vfall_tmr);
 
 	/* Set wait b-connect time  */
-	writel(0x1fffff, &otg_host->regs_otg->a_wait_bcon_tmr);
+	// writel(0x1fffff, &otg_host->regs_otg->a_wait_bcon_tmr);
+	writel(0x21fffe, &otg_host->regs_otg->a_wait_bcon_tmr);
 
 	/* Enbale SRP  */
 	val = readl(&otg_host->regs_otg->otg_int_st);
