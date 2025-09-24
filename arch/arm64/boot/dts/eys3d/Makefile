@@ -5,6 +5,7 @@ dtb-$(CONFIG_eCV5546) += eCV5546-xink-v2.dtb
 dtb-$(CONFIG_eCV5546) += ecv5546-xink-nano.dtb
 dtb-$(CONFIG_eCV5546) += ecv5546-yx5001.dtb
 dtb-$(CONFIG_eCV5546) += ecv5546-yx5001-r1.dtb
+dtb-$(CONFIG_eCV5546) += ecv5546-yx5001-r1em.dtb
 dtb-$(CONFIG_eCV5546) += ecv5546-yx4517.dtb
 dtb-$(CONFIG_eCV5546) += ecv5546-yx4512.dtb
 dtb-$(CONFIG_eCV5546) += ecv5546-yx4512-8g.dtb
