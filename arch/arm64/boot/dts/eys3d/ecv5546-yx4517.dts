@@ -920,7 +920,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo3_pins>;
-	status = "okay";
+	status = "disabled";
 	#address-cells = <1>;
 	#size-cells = <0>;
 };
@@ -2466,6 +2466,14 @@
 	running_leds_pins: pinmux_running_leds-pins {
 		function = "GPIO";
 		pins = "GPIO0";
+		pinconf_gpio23 {
+			pins = "GPIO23";
+			bias-pull-down;
+		};
+		pinconf_gpio88 {
+			pins = "GPIO88";
+			bias-pull-up;
+		};
 	};
 
 	ap6256_wifi_ctrl_pins: ap6256_wifi_ctrl-pins {

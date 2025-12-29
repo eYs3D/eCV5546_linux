@@ -506,6 +506,7 @@ static void ecv5546_mipitx_phy_init(struct ecv5546_dsi_host *sp_dsi_host)
 	//PHY Reset(back to normal mode)
 	value = eCV5546_DSI_HOST_READ(MIPITX_ANALOG_CTRL2);
 	value |= eCV5546_MIPITX_NORMAL;
+	value |= eCV5546_MIPITX_MIPI_PHY_CLK_EDGE_SEL(eCV5546_MIPITX_FALLING);
 	eCV5546_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL2, value);
 
 }
