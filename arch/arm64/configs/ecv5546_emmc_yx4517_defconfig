@@ -420,12 +420,12 @@ CONFIG_PWM_EYS3D=y
 #
 # AP6256 support
 #
-CONFIG_BCMDHD=y
-CONFIG_BCMDHD_FW_PATH="/etc/firmware/fw_bcmdhd.bin"
-CONFIG_BCMDHD_NVRAM_PATH="/etc/firmware/nvram.txt"
-CONFIG_BCMDHD_SDIO=y
+# CONFIG_BCMDHD is not set
+# CONFIG_BCMDHD_FW_PATH is not set
+# CONFIG_BCMDHD_NVRAM_PATH is not set
+# CONFIG_BCMDHD_SDIO is not set
 # CONFIG_BCMDHD_USB is not set
-CONFIG_BCMDHD_OOB=y
+# CONFIG_BCMDHD_OOB is not set
 # CONFIG_BCMDHD_SDIO_IRQ is not set
 
 #

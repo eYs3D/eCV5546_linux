@@ -36,7 +36,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "eYs3D eCV5546 yx4517";
+	model = "eYs3D eCV5546 yx6606";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon loglevel=8 no_console_suspend ";
